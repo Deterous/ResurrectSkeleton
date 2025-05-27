@@ -1,0 +1,3 @@
+[submodule "redumper"]
+	path = redumper
+	url = https://github.com/superg/redumper
