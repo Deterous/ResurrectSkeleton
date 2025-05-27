@@ -9,4 +9,4 @@ resurrect.exe -f -r image.skeleton
 `-f` or `--force` will continue to rebuild the skeleton even if a matching file is not found.
 `-r` or `--recursive` will look within all subdirectories for matching files.
 
-'''Note''': ECC is currently broken. Use CDmage or similar to fix the ECC. ISO rebuilding currently works fine.
+**Note**: ECC is currently broken. Use CDmage or similar to fix the ECC for BIN files. ISO file rebuilding currently works fine.
