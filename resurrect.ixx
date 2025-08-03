@@ -39,7 +39,7 @@ typedef std::tuple<std::string, uint32_t, uint32_t, uint32_t> ContentEntry;
 void write_sector(uint8_t *file_data, uint8_t *s, bool iso, uint32_t num_bytes)
 {
     if(iso)
-        std::copy_n(s, num_bytes, file_data);
+        std::copy_n(file_data, num_bytes, s);
     else
     {
         auto sector = (Sector *)s;
@@ -317,9 +317,9 @@ export int resurrect(std::filesystem::path file, bool force, bool recursive)
     if(sizeof(std::streamoff) < 8)
         LOG("warning: compiled as 32bit, may not work with skeletons >4GB");
 
-    auto dir = file.parent_path();
     auto skeleton = file.replace_extension(".skeleton");
     auto hash_file = file.replace_extension(".hash");
+    auto dir = file.has_parent_path() ? file.parent_path() : std::filesystem::path(".");
 
     if(std::filesystem::exists(skeleton) && std::filesystem::exists(hash_file) && std::filesystem::is_directory(dir))
     {
