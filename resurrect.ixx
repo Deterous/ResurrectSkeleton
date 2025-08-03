@@ -39,7 +39,7 @@ typedef std::tuple<std::string, uint32_t, uint32_t, uint32_t> ContentEntry;
 void write_sector(uint8_t *file_data, uint8_t *s, bool iso, uint32_t num_bytes)
 {
     if(iso)
-        std::copy_n(s, num_bytes, file_data);
+        std::copy_n(file_data, num_bytes, s);
     else
     {
         auto sector = (Sector *)s;
