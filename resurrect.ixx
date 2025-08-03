@@ -46,7 +46,7 @@ void write_sector(uint8_t *file_data, uint8_t *s, bool iso, uint32_t num_bytes)
         if(sector->header.mode == 1)
         {
             std::copy_n(file_data, num_bytes, sector->mode1.user_data);
-            Sector::ECC ecc = ECC().Generate((uint8_t *)&sector->header);
+            Sector::ECC ecc(ECC().Generate((uint8_t *)&sector->header));
             std::copy_n(ecc.p_parity, sizeof(ecc.p_parity), sector->mode1.ecc.p_parity);
             std::copy_n(ecc.q_parity, sizeof(ecc.q_parity), sector->mode1.ecc.q_parity);
             sector->mode1.edc = EDC().update((uint8_t *)sector, offsetof(Sector, mode1.edc)).final();
@@ -62,7 +62,7 @@ void write_sector(uint8_t *file_data, uint8_t *s, bool iso, uint32_t num_bytes)
             {
                 std::copy_n(file_data, num_bytes, sector->mode2.xa.form1.user_data);
                 sector->mode2.xa.form1.edc = EDC().update((uint8_t *)&sector->mode2.xa.sub_header, offsetof(Sector, mode2.xa.form1.edc) - offsetof(Sector, mode2.xa.sub_header)).final();
-                Sector::ECC ecc = ECC().Generate(*sector, true);
+                Sector::ECC ecc(ECC().Generate(*sector, true));
                 std::copy_n(ecc.p_parity, sizeof(ecc.p_parity), sector->mode2.xa.form1.ecc.p_parity);
                 std::copy_n(ecc.q_parity, sizeof(ecc.q_parity), sector->mode2.xa.form1.ecc.q_parity);
             }
@@ -92,9 +92,10 @@ int calcify(std::filesystem::path skeleton_path, std::vector<ContentEntry> conte
                 return -1;
             }
             std::vector<uint8_t> sector(iso ? FORM1_DATA_SIZE : CD_DATA_SIZE);
-            std::vector<uint8_t> file_data(FORM1_DATA_SIZE);
-            auto file_sectors = std::filesystem::file_size(file_path) / FORM1_DATA_SIZE;
-            auto file_leftovers = std::filesystem::file_size(file_path) % FORM1_DATA_SIZE;
+            uint32_t file_sector_size = FORM1_DATA_SIZE; // TODO: Support FORM2_DATA_SIZE option for .XA files
+            std::vector<uint8_t> file_data(file_sector_size);
+            auto file_sectors = std::filesystem::file_size(file_path) / file_sector_size;
+            auto file_leftovers = std::filesystem::file_size(file_path) % file_sector_size;
             uint64_t offset = std::get<1>(c);
             LOG("[{:08X}] writing {} from matching file: {}", offset, std::get<0>(c), file_path.string());
             for(int i = 0; i < file_sectors; ++i)
@@ -120,7 +121,7 @@ int calcify(std::filesystem::path skeleton_path, std::vector<ContentEntry> conte
                     return -1;
                 }
 
-                write_sector(file_data.data(), sector.data(), iso, FORM1_DATA_SIZE);
+                write_sector(file_data.data(), sector.data(), iso, file_sector_size);
 
                 skeleton.seekp((std::streamoff)(offset * (iso ? FORM1_DATA_SIZE : CD_DATA_SIZE)), std::ios::beg);
                 if(skeleton.fail())
