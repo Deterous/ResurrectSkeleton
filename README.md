@@ -8,5 +8,3 @@ resurrect.exe -f -r image.skeleton
 
 `-f` or `--force` will continue to rebuild the skeleton even if a matching file is not found.
 `-r` or `--recursive` will look within all subdirectories for matching files.
-
-**Note**: ECC is currently broken for resurrecting CD skeletons. For MODE1, convert to ISO and back. For MODE2 Form1, running resurrect twice seems to fix this for now.

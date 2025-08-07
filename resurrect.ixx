@@ -42,14 +42,21 @@ void write_sector(uint8_t *file_data, uint8_t *s, bool iso, uint32_t num_bytes)
         std::copy_n(file_data, num_bytes, s);
     else
     {
-        auto sector = (Sector *)s;
+        auto sector = reinterpret_cast<Sector*>(s);
         if(sector->header.mode == 1)
         {
             std::copy_n(file_data, num_bytes, sector->mode1.user_data);
+            sector->mode1.edc = EDC().update((uint8_t *)sector, offsetof(Sector, mode1.edc)).final();
             Sector::ECC ecc(ECC().Generate((uint8_t *)&sector->header));
             std::copy_n(ecc.p_parity, sizeof(ecc.p_parity), sector->mode1.ecc.p_parity);
             std::copy_n(ecc.q_parity, sizeof(ecc.q_parity), sector->mode1.ecc.q_parity);
-            sector->mode1.edc = EDC().update((uint8_t *)sector, offsetof(Sector, mode1.edc)).final();
+            // have to run this three times, no idea why
+            Sector::ECC ecc2(ECC().Generate((uint8_t *)&sector->header));
+            std::copy_n(ecc2.p_parity, sizeof(ecc.p_parity), sector->mode1.ecc.p_parity);
+            std::copy_n(ecc2.q_parity, sizeof(ecc.q_parity), sector->mode1.ecc.q_parity);
+            Sector::ECC ecc3(ECC().Generate((uint8_t *)&sector->header));
+            std::copy_n(ecc3.p_parity, sizeof(ecc.p_parity), sector->mode1.ecc.p_parity);
+            std::copy_n(ecc3.q_parity, sizeof(ecc.q_parity), sector->mode1.ecc.q_parity);
         }
         else if(sector->header.mode == 2)
         {
@@ -65,6 +72,10 @@ void write_sector(uint8_t *file_data, uint8_t *s, bool iso, uint32_t num_bytes)
                 Sector::ECC ecc(ECC().Generate(*sector, true));
                 std::copy_n(ecc.p_parity, sizeof(ecc.p_parity), sector->mode2.xa.form1.ecc.p_parity);
                 std::copy_n(ecc.q_parity, sizeof(ecc.q_parity), sector->mode2.xa.form1.ecc.q_parity);
+                // have to run this twice, no idea why
+                Sector::ECC ecc2(ECC().Generate(*sector, true));
+                std::copy_n(ecc2.p_parity, sizeof(ecc.p_parity), sector->mode2.xa.form1.ecc.p_parity);
+                std::copy_n(ecc2.q_parity, sizeof(ecc.q_parity), sector->mode2.xa.form1.ecc.q_parity);
             }
         }
     }
@@ -174,10 +185,44 @@ int calcify(std::filesystem::path skeleton_path, std::vector<ContentEntry> conte
         {
             if(std::get<0>(c) == "SYSTEM_AREA" && std::get<1>(c) == 0)
             {
-                if(hash_files["5188431849b4613152fd7bdba6a3ff0a4fd6424b"] != "SYSTEM_AREA")
-                    LOG("zeroing SYSTEM_AREA");
+                LOG("zeroing SYSTEM_AREA");
+                std::vector<uint8_t> sector(iso ? FORM1_DATA_SIZE : CD_DATA_SIZE);
+                std::vector<uint8_t> empty_sector(FORM1_DATA_SIZE);
+                uint64_t offset = 0;
+                for(int i = 0; i < 16; ++i)
+                {
+                    skeleton.seekg((std::streamoff)(offset * (iso ? FORM1_DATA_SIZE : CD_DATA_SIZE)), std::ios::beg);
+                    if(skeleton.fail())
+                    {
+                        LOG("seek failed: {}", skeleton_path.string());
+                        return -1;
+                    }
+
+                    skeleton.read((char *)sector.data(), sector.size());
+                    if(skeleton.fail())
+                    {
+                        LOG("read failed: {}", skeleton_path.string());
+                        return -1;
+                    }
+
+                    write_sector(empty_sector.data(), sector.data(), iso, 0);
+
+                    skeleton.seekp((std::streamoff)(offset * (iso ? FORM1_DATA_SIZE : CD_DATA_SIZE)), std::ios::beg);
+                    if(skeleton.fail())
+                    {
+                        LOG("seek failed: {}", skeleton_path.string());
+                        return -1;
+                    }
+                    skeleton.write((char *)sector.data(), sector.size());
+                    if(skeleton.fail())
+                    {
+                        LOG("write failed: {}", skeleton_path.string());
+                        return -1;
+                    }
+                    offset++;
+                }
             }
-            else if(std::get<3>(c) == 0 || hash_files["da39a3ee5e6b4b0d3255bfef95601890afd80709"] == std::get<0>(c))
+            else if(std::get<3>(c) == 0)
                 LOG("skipping zero-length file: {}", std::get<0>(c));
             else
                 LOG("no matching file found, skipping: {}", std::get<0>(c));
