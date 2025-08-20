@@ -14,14 +14,14 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-2022, ubuntu-24.04, macos-14, windows-11-arm, ubuntu-24.02-arm]
+        os: [windows-2022, ubuntu-24.04, macos-14, windows-11-arm, ubuntu-24.04-arm]
         platform: [32, 64]
         exclude:
           - os: macos-14
             platform: 32
           - os: windows-11-arm
             platform: 32
-          - os: ubuntu-24.02-arm
+          - os: ubuntu-24.04-arm
             platform: 32
 
     runs-on: ${{matrix.os}}
